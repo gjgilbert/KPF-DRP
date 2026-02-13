@@ -1,0 +1,35 @@
+[project]
+name = "kpf-drp"
+version = "0.1.0"
+description = "KPF Data Reduction Pipeline"
+authors = [
+    { name = "Greg Gilbert", email = "gjgilbert@caltech.edu" },
+    { name = "B.J. Fulton", email = "bjfulton@ipac.caltech.edu" },
+    { name = "Andrew Howard", email = "ahoward@caltech.edu" }
+]
+requires-python = ">=3.11"
+
+# Main dependencies
+dependencies = [
+    "astropy>=6.1",
+    "astroquery>=0.4",
+    "barycorrpy>=0.3",
+    "matplotlib>=3.5",
+    "numpy>=2.1",
+    "pandas>=2.2",
+    "scipy>=1.9.0"
+]
+
+# Optional dependencies for development (linting, testing, formatting)
+[project.optional-dependencies]
+dev = [
+    "black>=24.3.0",
+    "flake8>=6.1.0",
+    "pytest>=8.3.0",
+    "isort>=6.12.0",
+    "mypy>=1.5.1"
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
