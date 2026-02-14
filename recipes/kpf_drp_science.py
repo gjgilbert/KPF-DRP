@@ -2,7 +2,7 @@ from kpfpipe.data_models.level0 import KPF0
 from kpfpipe.data_models.level1 import KPF1
 from kpfpipe.data_models.ffi import KPF_FFI
 
-from kpfpipe.modules.flux_weighted_exposure_time import FluxWeightedExposureTime
+from kpfpipe.modules.exposure_time import ExposureTime
 from kpfpipe.modules.image_assembly import ImageAssembly
 from kpfpipe.modules.image_processing import ImageProcessing
 from kpfpipe.modules.spectral_extraction import SpectralExtraction
@@ -27,8 +27,8 @@ def main():
     wls = KPF_FFI.from_fits(fetch_master_path(datecode, 'thar-wls'))
 
     # Perform L0 --> L1 data processing algorithms
-    flux_weighted_midpoint_time = FluxWeightedMidpointTime(target_l0)
-    target_l0 = flux_weighted_midpoint_time.perform()
+    exposure_time = ExposureTime(target_l0)
+    target_l0 = exposure_time.perform()
 
     image_assembly = ImageAssembly(target_l0)
     target_ffi = image_assembly.perform()
