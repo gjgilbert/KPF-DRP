@@ -2,11 +2,12 @@ from kpfpipe.data_models.level0 import KPF0
 from kpfpipe.data_models.level1 import KPF1
 from kpfpipe.data_models.ffi import KPF_FFI
 
+from kpfpipe.modules.flux_weighted_exposure_time import FluxWeightedExposureTime
 from kpfpipe.modules.image_assembly import ImageAssembly
 from kpfpipe.modules.image_processing import ImageProcessing
 from kpfpipe.modules.spectral_extraction import SpectralExtraction
 from kpfpipe.modules.wavelength_calibration import WavelengthCalibration
-from kpfpipe.modules.barycentric_correction import FluxWeightedMidpointTime, BarycentricCorrection
+from kpfpipe.modules.barycentric_correction import BarycentricCorrection
 
 from kpfpipe.utils import get_datecode, fetch_filepath, fetch_master_path
 
