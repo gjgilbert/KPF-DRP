@@ -67,10 +67,9 @@ class BaseMastersModule:
             if failure > 1:
                 raise ValueError("multiple frames in stack failed to load")
 
-        mean = np.nanmean(data_cube, axis=0)
-        var = np.nanvar(data_cube, axis=0)
-            
         if not sigma_clip:
+            mean = np.nanmean(data_cube, axis=0)
+            var = np.nanvar(data_cube, axis=0)
             return mean, var
 
         med = np.nanmedian(data_cube, axis=0)
