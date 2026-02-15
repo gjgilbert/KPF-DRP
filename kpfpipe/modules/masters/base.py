@@ -1,3 +1,6 @@
+from astropy.stats import mad_std
+import numpy as np
+
 from kpfpipe.data_models.level0 import KPF0
 from kpfpipe.modules.image_assembly import ImageAssembly
 from kpfpipe.utils import get_datecode, fetch_filepath
@@ -23,45 +26,85 @@ class BaseMastersModule:
         return ImageAssembly(l0_obj).perform()
 
 
-    def compute_streaming_mean_and_variance(self, sigma_clip=3.0):
+    def stack_frames(self, sigma_clip=5.0):
         """
-        Computes mean and variance using Welford's algorithm
-        Optimized to reduce RAM usage at the expense of compute speed
+        Stacks full frame images and computes clipped mean and variance
+          * For N <= 5, statistics are computed directly
+          * For N > 5, computation uses streaming Welford's algorithm
         """
-        # 1st pass: unclipped mean and variance
-        mean = np.zeros((NROW,NCOL), dtype=float)
-        M2 = np.zeros_like(mean, dtype=float)
-        
-        n = 0
+        if len(self.obs_id) <= 5:
+            mean, var = self.compute_direct_mean_and_variance(sigma_clip = sigma_clip)
 
-        for i, obs_id in enumerate(self.obs_ids):
+        else:
+            mean, var = self.compute_streaming_mean_and_variance(sigma_clip = sigma_clip)
+
+        return mean, var
+
+
+    def compute_direct_mean_and_variance(self, sigma_clip=5.0, nframe_max = None)
+        if nframe_max is None:
+            nframe = len(self.obs_ids)
+        else:
+            nframe = np.min([nframe_max,len(self.obs_ids)])
+
+        data_cube = np.zeros((nframe,NROW,NCOL),dtype=float)
+        failure = 0
+        
+        for i in range(nframe):
+            obs_id = self.obs_ids[i]
+
+            # TODO: scale by exposure time
             try:
                 l0_obj = self.load_frame(obs_id)
                 frame = self.assemble_frame(l0_obj)
+                data_cube[i] = frame
             except Exception as e:
                 logger.warning(f"Skipping {obs_id} in initial pass: {e}")
+                data_cube[i,...] = np.nan
+                failure += 1
                 continue
 
-            # TODO: scale by exposure time
-            n += 1
-            delta = frame - mean
-            mean += delta / n
-            M2 += delta * (frame - mean)
+            if failure > 1:
+                raise ValueError("multiple frames in stack failed to load")
 
-            xmin = np.minimum(frame, xmin)
-            xmax = np.maximum(frame, xmax)
-
-        var = M2 / (n - 1)
-
+        mean = np.nanmean(data_cube, axis=0)
+        var = np.nanvar(data_cube, axis=0)
+            
         if not sigma_clip:
             return mean, var
-        
-        # 2nd pass: clipped mean and variance
-        clipped_sum = np.zeros_like(mean, dtype=float)
-        clipped_sum2 = np.zeros_like(mean, dtype=float)
-        count = np.zeros_like(mean, dtype=int)
+
+        med = np.nanmedian(data_cube, axis=0)
+        mad = mad_std(data_cube, axis=0, ignore_nan=True)
+        out = np.abs(data_cube - med)/mad > sigma_clip
+
+        count = np.sum(~out, axis=0)
+
+        clipped_mean = np.nansum(np.where(out, np.nan, data_cube), axis=0) / count
+        clipped_var = np.nansum(np.where(out, np.nan, (data_cube - clipped_mean)**2), axis=0) / count
+
+        return clipped_mean, clipped_var
+
+
+    def compute_streaming_mean_and_variance(self, sigma_clip=5.0):
+        """
+        Computes mean and variance using Welford's algorithm
+        Optimized to reduce RAM usage at the expense of compute speed
+        Estimates approximate mean and variance directly to perform outlier rejection
+        """
+        if sigma_clip:
+            approx_mean, approx_var = self.compute_direct_mean_and_variance(sigma_clip = sigma_clip, nframe_max = 5)
+            lower = approx_mean - sigma_clip * np.sqrt(approx_var)
+            upper = approx_mean + sigma_clip * np.sqrt(approx_var)
+        else:
+            lower = -np.inf
+            upper = np.inf
+            
+        S = np.zeros((NROW,NCOL), dtype=float)
+        S2 = np.zeros((NROW,NCOL), dtype=float)
+        count = np.zeros((NROW,NCOL), dtype=int)
 
         for i, obs_id in enumerate(self.obs_ids):
+            # TODO: scale by exposure time
             try:
                 l0_obj = self.load_frame(obs_id)
                 frame = self.assemble_frame(l0_obj)
@@ -69,19 +112,21 @@ class BaseMastersModule:
                 logger.warning(f"Skipping {obs_id} in sigma-clipping pass: {e}")
                 continue
 
-            lower = mean - sigma_clip * np.sqrt(var)
-            upper = mean + sigma_clip * np.sqrt(var)
-            mask = (frame >= lower) & (frame <= upper)
+            if failure / len(self.obs_ids) > 0.2:
+                raise ValueError(f"more than 20% of frames in stack failed to load")
 
-            clipped_sum += frame * mask
-            clipped_sum2 += frame ** 2 * mask
+            mask = (frame >= lower) & (frame <= upper)
+            S += frame * mask
+            S2 += frame ** 2 * mask
             count += mask.astype(int)
     
-        if np.any(count == 0):
-            raise ValueError(f"Found {np.sum(count==0)} pixels with zero valid frames")
+        bad = count <= 0.5 * len(self.obs_ids)
+        count = np.where(bad, 1, count)
 
-        count = np.where(count == 0, 1, count)
-        clipped_mean = clipped_sum / count
-        clipped_var = clipped_sum2 / count - clipped_mean ** 2
+        clipped_mean = S / count
+        clipped_var = S2 / count - clipped_mean ** 2
+
+        clipped_mean[bad] = np.nan
+        clipped_var[bad] = np.nan
 
         return clipped_mean, clipped_var
