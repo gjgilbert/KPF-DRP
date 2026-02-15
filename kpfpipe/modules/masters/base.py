@@ -25,16 +25,14 @@ class BaseMastersModule:
 
     def compute_streaming_mean_and_variance(self, sigma_clip=3.0):
         """
-        Computes mean and variance using Welford's algorithm
+        Computes mean and variance using Huber estimator
         Optimized to reduce RAM usage at the expense of compute speed
 
-        TODO: re-write using Huber weighting
+        # TODO: switch back to classic Welford for first 5-10 frames
         """
-        # 1st pass: unclipped mean and variance
         mean = np.zeros((NROW,NCOL), dtype=float)
         M2 = np.zeros_like(mean, dtype=float)
-        
-        n = 0
+        weight = np.zeros_like(mean, dtype=float)
 
         for i, obs_id in enumerate(self.obs_ids):
             try:
@@ -45,45 +43,20 @@ class BaseMastersModule:
                 continue
 
             # TODO: scale by exposure time
-            n += 1
+            var = np.where(weight > 0, M2 / weight, 0.0)
+            std = np.sqrt(var)
+            
+            s = np.where(std > 0, std, 1.0)
+            r = (frame - mean) / s
+            
+            w = np.minimum(1.0, sigma_clip / np.abs(r))
+            w = np.where(np.isfinite(w), w, 1.0)
+
+            weight += w
             delta = frame - mean
-            mean += delta / n
-            M2 += delta * (frame - mean)
+            mean += w * delta / weight
+            M2 += w * delta * (frame - mean)
 
-            xmin = np.minimum(frame, xmin)
-            xmax = np.maximum(frame, xmax)
+        var = np.where(weight > 0, M2 / weight, 0.0)
 
-        var = M2 / (n - 1)
-
-        if not sigma_clip:
-            return mean, var
-        
-        # 2nd pass: clipped mean and variance
-        clipped_sum = np.zeros_like(mean, dtype=float)
-        clipped_sum2 = np.zeros_like(mean, dtype=float)
-        count = np.zeros_like(mean, dtype=int)
-
-        for i, obs_id in enumerate(self.obs_ids):
-            try:
-                l0_obj = self.load_frame(obs_id)
-                frame = self.assemble_frame(l0_obj)
-            except Exception as e:
-                logger.warning(f"Skipping {obs_id} in sigma-clipping pass: {e}")
-                continue
-
-            lower = mean - sigma_clip * np.sqrt(var)
-            upper = mean + sigma_clip * np.sqrt(var)
-            mask = (frame >= lower) & (frame <= upper)
-
-            clipped_sum += frame * mask
-            clipped_sum2 += frame ** 2 * mask
-            count += mask.astype(int)
-    
-        if np.any(count == 0):
-            raise ValueError(f"Found {np.sum(count==0)} pixels with zero valid frames")
-
-        count = np.where(count == 0, 1, count)
-        clipped_mean = clipped_sum / count
-        clipped_var = clipped_sum2 / count - clipped_mean ** 2
-
-        return clipped_mean, clipped_var
+        return mean, var
