@@ -15,7 +15,6 @@ class BaseMastersModule:
     def load_frame(obs_id):
         datecode = get_datecode(obs_id)
         filepath = fetch_filepath(obs_id)
-
         l0_obj = KPF0.from_fits(filepath)
 
         return l0_obj
@@ -34,7 +33,6 @@ class BaseMastersModule:
         """
         if len(self.obs_id) <= 5:
             mean, var = self.compute_direct_mean_and_variance(sigma_clip = sigma_clip)
-
         else:
             mean, var = self.compute_streaming_mean_and_variance(sigma_clip = sigma_clip)
 
@@ -74,7 +72,7 @@ class BaseMastersModule:
 
         med = np.nanmedian(data_cube, axis=0)
         mad = mad_std(data_cube, axis=0, ignore_nan=True)
-        out = np.abs(data_cube - med)/mad > sigma_clip
+        out = np.abs(data_cube - med) / mad > sigma_clip
 
         count = np.sum(~out, axis=0)
 
