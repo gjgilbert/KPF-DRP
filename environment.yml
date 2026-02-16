@@ -4,16 +4,16 @@ channels:
   - defaults
 dependencies:
   - python>=3.11.0
-  - astropy>=6.1.0
-  - astroquery>=0.4.0
-  - barycorrpy>=0.3.0
   - matplotlib>=3.5.0
-  - numpy>=2.1.0
-  - pandas>=2.2.0
+  - numpy>=2.1.2
+  - pandas>=2.2.3
   - scipy>=1.9.0
   - tqdm>=4.64.0
   - pip
   - pip:
+      - astropy>=6.1.4
+      - astroquery>=0.4.0
+      - barycorrpy>=0.4.0
       - black>=24.3.0
       - flake8>=6.1.0
       - pytest>=8.3.0
