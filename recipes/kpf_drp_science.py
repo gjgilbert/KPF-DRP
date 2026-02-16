@@ -19,12 +19,12 @@ def main():
     obs_id = 'KP.YYYYMMDD.NNNNN.NN'
     datecode = get_datecode(obs_id)
     filpath = fetch_filepath(obs_id)
-    target_l0 = KPF0.from_fits(obs_id)
+    target_l0 = KPF0.from_fits(filepah)
 
     flat = KPF_FFI.from_fits(fetch_master_path(datecode, 'flat'))
     dark = KPF_FFI.from_fits(fetch_master_path(datecode, 'dark'))
     bias = KPF_FFI.from_fits(fetch_master_path(datecode, 'bias'))
-    wls = KPF_FFI.from_fits(fetch_master_path(datecode, 'thar-wls'))
+    wls = KPF1.from_fits(fetch_master_path(datecode, 'thar-wls'))
 
     # Perform L0 --> L1 data processing algorithms
     exposure_time = ExposureTime(target_l0)
@@ -40,7 +40,7 @@ def main():
     target_l1 = spectral_extraction.perform()
 
     wavelength_calibration = WavelengthCalibration(target_l1)
-    target_l1 = wavelength_calibration.perform()
+    target_l1 = wavelength_calibration.perform(wls)
 
     barycentric_correction = BarycentricCorrection(target_l1)
     target_l1 = barycentric_correction.perform()

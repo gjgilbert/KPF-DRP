@@ -31,7 +31,7 @@ class BaseMastersModule:
           * For N <= 5, statistics are computed directly
           * For N > 5, computation uses streaming Welford's algorithm
         """
-        if len(self.obs_id) <= 5:
+        if len(self.obs_ids) <= 5:
             mean, var = self.compute_direct_mean_and_variance(sigma_clip = sigma_clip)
         else:
             mean, var = self.compute_streaming_mean_and_variance(sigma_clip = sigma_clip)
@@ -42,28 +42,28 @@ class BaseMastersModule:
     def compute_direct_mean_and_variance(self, sigma_clip=5.0, nframe_max = None)
         if nframe_max is None:
             nframe = len(self.obs_ids)
+            obs_ids = self.obs_ids
         else:
             nframe = np.min([nframe_max,len(self.obs_ids)])
+            obs_ids = self.obs_ids[:nframe]
 
         data_cube = np.zeros((nframe,NROW,NCOL),dtype=float)
         failure = 0
         
-        for i in range(nframe):
-            obs_id = self.obs_ids[i]
-
+        for i, obs_id in enumerate(obs_ids):
             # TODO: scale by exposure time
             try:
                 l0_obj = self.load_frame(obs_id)
                 frame = self.assemble_frame(l0_obj)
                 data_cube[i] = frame
             except Exception as e:
-                logger.warning(f"Skipping {obs_id} in initial pass: {e}")
+                logger.warning(f"Skipping {obs_id} in compute_direct_mean_and_variance: {e}")
                 data_cube[i,...] = np.nan
                 failure += 1
                 continue
 
-            if failure > 1:
-                raise ValueError("multiple frames in stack failed to load")
+            if failure / nframe > 0.2:
+                raise ValueError(f"more than 20% of frames in stack failed to load")
 
         if not sigma_clip:
             mean = np.nanmean(data_cube, axis=0)
@@ -74,10 +74,8 @@ class BaseMastersModule:
         mad = mad_std(data_cube, axis=0, ignore_nan=True)
         out = np.abs(data_cube - med) / mad > sigma_clip
 
-        count = np.sum(~out, axis=0)
-
-        clipped_mean = np.nansum(np.where(out, np.nan, data_cube), axis=0) / count
-        clipped_var = np.nansum(np.where(out, np.nan, (data_cube - clipped_mean)**2), axis=0) / count
+        clipped_mean = np.nansum(np.where(out, np.nan, data_cube), axis=0) / np.sum(~out, axis=0)
+        clipped_var = np.nansum(np.where(out, np.nan, (data_cube - clipped_mean)**2), axis=0) / np.sum(~out, axis=0)
 
         return clipped_mean, clipped_var
 
@@ -99,6 +97,7 @@ class BaseMastersModule:
         S = np.zeros((NROW,NCOL), dtype=float)
         S2 = np.zeros((NROW,NCOL), dtype=float)
         count = np.zeros((NROW,NCOL), dtype=int)
+        failure = 0
 
         for i, obs_id in enumerate(self.obs_ids):
             # TODO: scale by exposure time
@@ -106,7 +105,8 @@ class BaseMastersModule:
                 l0_obj = self.load_frame(obs_id)
                 frame = self.assemble_frame(l0_obj)
             except Exception as e:
-                logger.warning(f"Skipping {obs_id} in sigma-clipping pass: {e}")
+                logger.warning(f"Skipping {obs_id} in compute_streaming_mean_and_variance: {e}")
+                failure += 1
                 continue
 
             if failure / len(self.obs_ids) > 0.2:
@@ -120,10 +120,7 @@ class BaseMastersModule:
         bad = count <= 0.5 * len(self.obs_ids)
         count = np.where(bad, 1, count)
 
-        clipped_mean = S / count
-        clipped_var = S2 / count - clipped_mean ** 2
-
-        clipped_mean[bad] = np.nan
-        clipped_var[bad] = np.nan
+        clipped_mean = np.where(bad, np.nan, S / count)
+        clipped_var = np.where(bad, np.nan, S2 / count - clipped_mean ** 2)
 
         return clipped_mean, clipped_var
