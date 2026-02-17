@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import lsq
+from scipy.optimize import least_squares
 
 
 def gaussian(theta, x):
