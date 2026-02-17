@@ -35,14 +35,14 @@ def _jac_wrapper(theta, x, y, jac):
     return jac(theta, x)
 
 
-def optimize_lsq(theta0, x, y, func, jac=None):
+def optimize_lsq(theta0, x, y, func, jac):
     """
     Wrapper function for scipy.optimize.least_squares
     """
     result = least_squares(_res_wrapper, 
                            theta0, 
                            args = (x, y, func)
-                           jac = _jac_wrapper, 
+                           jac = _jac_wrapper,
                            method = 'lm', 
                            )
     
