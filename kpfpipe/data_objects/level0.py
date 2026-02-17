@@ -1,4 +1,4 @@
-from kpfpipe.data_models.base import KPFDataModel
+from kpfpipe.data_objects.base import KPFDataModel
 
 class KPF0(KPFDataModel):
     def __init__(self):
