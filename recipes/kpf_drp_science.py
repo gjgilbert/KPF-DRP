@@ -9,7 +9,7 @@ from kpfpipe.modules.spectral_extraction import SpectralExtraction
 from kpfpipe.modules.wavelength_calibration import WavelengthCalibration
 from kpfpipe.modules.barycentric_correction import BarycentricCorrection
 
-from kpfpipe.utils import get_datecode, fetch_filepath, fetch_master_path
+from kpfpipe.utils import get_datecode, fetch_filepath, fetch_master_filepath
 
 
 def main():
@@ -18,13 +18,12 @@ def main():
     # Load target observation and corresponding masters
     obs_id = 'KP.YYYYMMDD.NNNNN.NN'
     datecode = get_datecode(obs_id)
-    filpath = fetch_filepath(obs_id)
-    target_l0 = KPF0.from_fits(filepah)
+    target_l0 = KPF0.from_fits(fetch_filepath(obs_id))
 
-    flat = KPF_FFI.from_fits(fetch_master_path(datecode, 'flat'))
-    dark = KPF_FFI.from_fits(fetch_master_path(datecode, 'dark'))
-    bias = KPF_FFI.from_fits(fetch_master_path(datecode, 'bias'))
-    wls = KPF1.from_fits(fetch_master_path(datecode, 'thar-wls'))
+    flat = KPF_FFI.from_fits(fetch_master_filepath(datecode, 'flat'))
+    dark = KPF_FFI.from_fits(fetch_master_filepath(datecode, 'dark'))
+    bias = KPF_FFI.from_fits(fetch_master_filepath(datecode, 'bias'))
+    wls = KPF1.from_fits(fetch_master_filepath(datecode, 'thar-wls'))
 
     # Perform L0 --> L1 data processing algorithms
     exposure_time = ExposureTime(target_l0)
