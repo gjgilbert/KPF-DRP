@@ -12,6 +12,7 @@ def get_datecode(input_str):
     Returns:
         datecode, e.g. '20230708'
     """
+    # TODO: modify to properly handle masters files, use regex
     if is_obs_id(input_str):
         obs_id = input_str
     else:
@@ -32,7 +33,7 @@ def get_obs_id(filename):
     Returns:
         obs_id, e.g. 'KP.20240113.23249.10'
     """
-    # TODO: modify to properly handle masters files
+    # TODO: modify to properly handle masters files, use regex
     obs_id = file.split('/')[-1]
     for substring in ['.fits', '_2D', '_L1', '_L2']:
         obs_id = obs_id.replace(substring, '')

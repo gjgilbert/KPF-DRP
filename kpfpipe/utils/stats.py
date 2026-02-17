@@ -21,18 +21,31 @@ def gaussian_jac(theta, x):
     return J
 
 
-def optimize_lsq(func, theta0, x, y, jac=None):
+def _res_wrapper(theta, x, y, func):
     """
-    Optimize theta for a given function using non-linear least-squares
+    Helper function for optimize_lsq
+    """
+    return func(theta, x) - y
+
+
+def _jac_wrapper(theta, x, y, jac):
+    """
+    Helper function for optimize_lsq
+    """
+    return jac(theta, x)
+
+
+def optimize_lsq(theta0, x, y, func, jac=None):
+    """
     Wrapper function for scipy.optimize.least_squares
-    """   
-    def _residuals(theta, x, y):
-        return func(theta, x) - y
-
-    def _jac(theta, x, y):
-        return jac(theta, x)
-
-    result = least_squares(_residuals, theta0, jac=_jac, method='lm', args=(x,y))
+    """
+    result = least_squares(_res_wrapper, 
+                           theta0, 
+                           args = (x, y, func)
+                           jac = _jac_wrapper, 
+                           method = 'lm', 
+                           )
+    
     theta, rms = result.x, np.std(result.fun)
     
     return theta, rms
