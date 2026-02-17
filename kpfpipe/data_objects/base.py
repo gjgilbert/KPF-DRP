@@ -1,3 +1,3 @@
-class KPFDataModel(KPF0):
+class KPFDataModel:
     def __init__(self):
-        super().__init__()
+        pass
